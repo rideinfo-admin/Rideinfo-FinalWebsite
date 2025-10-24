@@ -78,19 +78,45 @@ class ApiService {
   }
 
   async getInstitutes(): Promise<Institute[]> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/`);
-    if (!response.ok) throw new Error('Failed to fetch institutes');
-    return response.json();
+    try {
+      // The correct endpoint is /api/institutes/institutes/
+      const response = await fetch(`${API_BASE_URL}/institutes/institutes/`);
+      
+      console.log('API Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', errorText);
+        throw new Error(`Failed to fetch institutes: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Raw API data:', data);
+      
+      // Ensure we return an array
+      if (Array.isArray(data)) {
+        return data;
+      } else if (data && Array.isArray(data.results)) {
+        // Handle paginated response
+        return data.results;
+      } else {
+        console.error('Unexpected data format:', data);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error in getInstitutes:', error);
+      throw error;
+    }
   }
 
   async getInstitute(id: number): Promise<Institute> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/${id}/`);
+    const response = await this.fetch(`${API_BASE_URL}/institutes/${id}/`);
     if (!response.ok) throw new Error('Failed to fetch institute');
     return response.json();
   }
 
   async createInstitute(data: Partial<Institute>): Promise<Institute> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/`, {
+    const response = await this.fetch(`${API_BASE_URL}/institutes/`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -102,7 +128,7 @@ class ApiService {
   }
 
   async updateInstitute(id: number, data: Partial<Institute>): Promise<Institute> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/${id}/`, {
+    const response = await this.fetch(`${API_BASE_URL}/institutes/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
@@ -114,22 +140,24 @@ class ApiService {
   }
 
   async deleteInstitute(id: number): Promise<void> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/${id}/`, {
+    const response = await this.fetch(`${API_BASE_URL}/institutes/${id}/`, {
       method: 'DELETE',
     });
     if (!response.ok) throw new Error('Failed to delete institute');
   }
 
   async getInstituteDrivers(instituteId: number): Promise<Driver[]> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/${instituteId}/drivers/`);
+    const response = await this.fetch(`${API_BASE_URL}/institutes/${instituteId}/drivers/`);
     if (!response.ok) throw new Error('Failed to fetch institute drivers');
-    return response.json();
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   }
 
   async getDrivers(): Promise<Driver[]> {
     const response = await this.fetch(`${API_BASE_URL}/institutes/drivers/`);
     if (!response.ok) throw new Error('Failed to fetch drivers');
-    return response.json();
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   }
 
   async getDriver(id: number): Promise<Driver> {
@@ -192,7 +220,8 @@ class ApiService {
   async getComplaints(): Promise<Complaint[]> {
     const response = await this.fetch(`${API_BASE_URL}/institutes/complaints/`);
     if (!response.ok) throw new Error('Failed to fetch complaints');
-    return response.json();
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   }
 
   async getComplaint(id: number): Promise<Complaint> {

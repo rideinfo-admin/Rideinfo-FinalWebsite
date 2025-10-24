@@ -22,11 +22,19 @@ export default function InstituteManagement() {
   const loadInstitutes = async () => {
     try {
       setLoading(true);
+      console.log('Loading institutes...');
       const data = await apiService.getInstitutes();
-      setInstitutes(data);
+      console.log('Institutes data received:', data);
+      // Ensure data is always an array
+      const institutesArray = Array.isArray(data) ? data : [];
+      console.log('Institutes array:', institutesArray);
+      setInstitutes(institutesArray);
       setError('');
     } catch (err) {
+      console.error('Error loading institutes:', err);
       setError(err instanceof Error ? err.message : 'Failed to load institutes');
+      // Set empty array on error to prevent map error
+      setInstitutes([]);
     } finally {
       setLoading(false);
     }
@@ -239,6 +247,19 @@ export default function InstituteManagement() {
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
+        </div>
+      ) : institutes.length === 0 ? (
+        <div className="text-center py-12">
+          <Building2 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-slate-900 mb-2">No institutes found</h3>
+          <p className="text-slate-600 mb-4">Get started by adding your first institute</p>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition"
+          >
+            <Plus className="h-5 w-5" />
+            <span>Add Institute</span>
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
