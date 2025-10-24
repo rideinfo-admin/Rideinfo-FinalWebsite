@@ -29,10 +29,11 @@ export default function DriverManagement({ institute, onBack }: DriverManagement
     try {
       setLoading(true);
       const data = await apiService.getInstituteDrivers(institute.id);
-      setDrivers(data);
+      setDrivers(Array.isArray(data) ? data : []);
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load drivers');
+      setDrivers([]);
     } finally {
       setLoading(false);
     }
@@ -81,6 +82,7 @@ export default function DriverManagement({ institute, onBack }: DriverManagement
       const newDriver = await apiService.createDriver({ ...data, institute: institute.id });
       setDrivers([...drivers, newDriver]);
       setShowAddForm(false);
+      setError('');
     } catch (err) {
       throw err;
     }
