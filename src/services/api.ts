@@ -79,27 +79,22 @@ class ApiService {
   }
 
   async getInstitutes(): Promise<Institute[]> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/`);
-<<<<<<< HEAD
+    const response = await this.fetch(`${API_BASE_URL}/institutes/`);
     if (!response.ok) {
       throw new Error(`Failed to fetch institutes: ${response.status}`);
     }
     const data = await response.json();
     return Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : []);
-=======
-    if (!response.ok) throw new Error('Failed to fetch institutes');
-    return response.json();
->>>>>>> parent of fe80406 (new update)
   }
 
   async getInstitute(id: number): Promise<Institute> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/${id}/`);
+    const response = await this.fetch(`${API_BASE_URL}/institutes/${id}/`);
     if (!response.ok) throw new Error('Failed to fetch institute');
     return response.json();
   }
 
   async createInstitute(data: Partial<Institute>): Promise<Institute> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/`, {
+    const response = await this.fetch(`${API_BASE_URL}/institutes/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -112,7 +107,7 @@ class ApiService {
   }
 
   async updateInstitute(id: number, data: Partial<Institute>): Promise<Institute> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/${id}/`, {
+    const response = await this.fetch(`${API_BASE_URL}/institutes/${id}/`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -125,39 +120,34 @@ class ApiService {
   }
 
   async deleteInstitute(id: number): Promise<void> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/${id}/`, {
+    const response = await this.fetch(`${API_BASE_URL}/institutes/${id}/`, {
       method: 'DELETE',
     });
     if (!response.ok) throw new Error('Failed to delete institute');
   }
 
   async getInstituteDrivers(instituteId: number): Promise<Driver[]> {
-<<<<<<< HEAD
-    const response = await this.fetch(`${API_BASE_URL}/institutes/drivers/?institute=${instituteId}`);
+    const response = await this.fetch(`${API_BASE_URL}/drivers/?institute=${instituteId}`);
     if (!response.ok) throw new Error('Failed to fetch institute drivers');
     const data = await response.json();
     return Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : []);
-=======
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/${instituteId}/drivers/`);
-    if (!response.ok) throw new Error('Failed to fetch institute drivers');
-    return response.json();
->>>>>>> parent of fe80406 (new update)
   }
 
   async getDrivers(): Promise<Driver[]> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/drivers/`);
+    const response = await this.fetch(`${API_BASE_URL}/drivers/`);
     if (!response.ok) throw new Error('Failed to fetch drivers');
-    return response.json();
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   }
 
   async getDriver(id: number): Promise<Driver> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/drivers/${id}/`);
+    const response = await this.fetch(`${API_BASE_URL}/drivers/${id}/`);
     if (!response.ok) throw new Error('Failed to fetch driver');
     return response.json();
   }
 
   async createDriver(data: Partial<Driver> & { password: string; confirm_password: string }): Promise<Driver> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/drivers/`, {
+    const response = await this.fetch(`${API_BASE_URL}/drivers/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -170,7 +160,7 @@ class ApiService {
   }
 
   async updateDriver(id: number, data: Partial<Driver>): Promise<Driver> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/drivers/${id}/`, {
+    const response = await this.fetch(`${API_BASE_URL}/drivers/${id}/`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -183,7 +173,7 @@ class ApiService {
   }
 
   async deleteDriver(id: number): Promise<void> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/drivers/${id}/`, {
+    const response = await this.fetch(`${API_BASE_URL}/drivers/${id}/`, {
       method: 'DELETE',
     });
     if (!response.ok) throw new Error('Failed to delete driver');
@@ -194,7 +184,7 @@ class ApiService {
     formData.append('file', file);
 
     const token = authService.getAccessToken();
-    const response = await fetch(`${API_BASE_URL}/institutes/drivers/bulk_upload/`, {
+    const response = await fetch(`${API_BASE_URL}/drivers/bulk_upload/`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -210,19 +200,20 @@ class ApiService {
   }
 
   async getComplaints(): Promise<Complaint[]> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/complaints/`);
+    const response = await this.fetch(`${API_BASE_URL}/complaints/`);
     if (!response.ok) throw new Error('Failed to fetch complaints');
-    return response.json();
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   }
 
   async getComplaint(id: number): Promise<Complaint> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/complaints/${id}/`);
+    const response = await this.fetch(`${API_BASE_URL}/complaints/${id}/`);
     if (!response.ok) throw new Error('Failed to fetch complaint');
     return response.json();
   }
 
   async updateComplaint(id: number, data: Partial<Complaint>): Promise<Complaint> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/complaints/${id}/`, {
+    const response = await this.fetch(`${API_BASE_URL}/complaints/${id}/`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -235,14 +226,14 @@ class ApiService {
   }
 
   async deleteComplaint(id: number): Promise<void> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/complaints/${id}/`, {
+    const response = await this.fetch(`${API_BASE_URL}/complaints/${id}/`, {
       method: 'DELETE',
     });
     if (!response.ok) throw new Error('Failed to delete complaint');
   }
 
   async resolveComplaint(id: number, notes: string): Promise<Complaint> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/complaints/${id}/resolve/`, {
+    const response = await this.fetch(`${API_BASE_URL}/complaints/${id}/resolve/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ resolution_notes: notes }),
@@ -252,13 +243,13 @@ class ApiService {
   }
 
   async getInstituteStatistics(): Promise<Statistics> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/statistics/`);
+    const response = await this.fetch(`${API_BASE_URL}/institutes/statistics/`);
     if (!response.ok) throw new Error('Failed to fetch statistics');
     return response.json();
   }
 
   async getComplaintStatistics(): Promise<Statistics> {
-    const response = await this.fetch(`${API_BASE_URL}/institutes/complaints/statistics/`);
+    const response = await this.fetch(`${API_BASE_URL}/complaints/statistics/`);
     if (!response.ok) throw new Error('Failed to fetch complaint statistics');
     return response.json();
   }
