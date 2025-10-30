@@ -80,11 +80,16 @@ class ApiService {
 
   async getInstitutes(): Promise<Institute[]> {
     const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/`);
+<<<<<<< HEAD
     if (!response.ok) {
       throw new Error(`Failed to fetch institutes: ${response.status}`);
     }
     const data = await response.json();
     return Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : []);
+=======
+    if (!response.ok) throw new Error('Failed to fetch institutes');
+    return response.json();
+>>>>>>> parent of fe80406 (new update)
   }
 
   async getInstitute(id: number): Promise<Institute> {
@@ -127,17 +132,22 @@ class ApiService {
   }
 
   async getInstituteDrivers(instituteId: number): Promise<Driver[]> {
+<<<<<<< HEAD
     const response = await this.fetch(`${API_BASE_URL}/institutes/drivers/?institute=${instituteId}`);
     if (!response.ok) throw new Error('Failed to fetch institute drivers');
     const data = await response.json();
     return Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : []);
+=======
+    const response = await this.fetch(`${API_BASE_URL}/institutes/institutes/${instituteId}/drivers/`);
+    if (!response.ok) throw new Error('Failed to fetch institute drivers');
+    return response.json();
+>>>>>>> parent of fe80406 (new update)
   }
 
   async getDrivers(): Promise<Driver[]> {
     const response = await this.fetch(`${API_BASE_URL}/institutes/drivers/`);
     if (!response.ok) throw new Error('Failed to fetch drivers');
-    const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    return response.json();
   }
 
   async getDriver(id: number): Promise<Driver> {
@@ -202,8 +212,7 @@ class ApiService {
   async getComplaints(): Promise<Complaint[]> {
     const response = await this.fetch(`${API_BASE_URL}/institutes/complaints/`);
     if (!response.ok) throw new Error('Failed to fetch complaints');
-    const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    return response.json();
   }
 
   async getComplaint(id: number): Promise<Complaint> {
