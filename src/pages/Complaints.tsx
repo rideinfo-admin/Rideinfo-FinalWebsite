@@ -1,387 +1,611 @@
-import { useState, useEffect } from 'react';
-import { MessageSquare, User, Phone, Mail, AlertCircle, Calendar, Edit, Trash2, X } from 'lucide-react';
-import { apiService, Complaint, Institute } from '../services/api';
-import ConfirmDialog from '../components/ConfirmDialog';
+import { useEffect, useState } from 'react';
+import api from '@/lib/api';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { MessageSquare, Calendar, User, Bus, Eye, CheckCircle, XCircle } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
 
-export default function Complaints() {
+interface Complaint {
+  id: number;
+  complaint_id: string;
+  institute_name: string;
+  complainant_name: string;
+  complainant_email: string | null;
+  complainant_type: string;
+  complainant_type_display: string;
+  complaint_against: string;
+  complaint_against_display: string;
+  reason: string;
+  status: string;
+  status_display: string;
+  priority: string;
+  priority_display: string;
+  driver_code: string | null;
+  bus_number: string | null;
+  bus_short_name: string | null;
+  date_time: string;
+  resolved_at: string | null;
+  resolution_notes: string | null;
+}
+
+const Complaints = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [institutes, setInstitutes] = useState<Institute[]>([]);
-  const [selectedInstitute, setSelectedInstitute] = useState<number | 'all'>('all');
-  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  const [filteredComplaints, setFilteredComplaints] = useState<Complaint[]>([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [resolveDialogOpen, setResolveDialogOpen] = useState(false);
+  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  const [newStatus, setNewStatus] = useState('');
+  const [resolutionNotes, setResolutionNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
-    loadData();
+    fetchComplaints();
   }, []);
 
-  const loadData = async () => {
+  useEffect(() => {
+    let filtered = complaints;
+
+    if (search) {
+      filtered = filtered.filter(
+        (c) =>
+          c.complaint_id.toLowerCase().includes(search.toLowerCase()) ||
+          c.complainant_name.toLowerCase().includes(search.toLowerCase()) ||
+          c.reason.toLowerCase().includes(search.toLowerCase()) ||
+          (c.bus_short_name && c.bus_short_name.toLowerCase().includes(search.toLowerCase()))
+      );
+    }
+
+    if (statusFilter !== 'ALL') {
+      filtered = filtered.filter((c) => c.status === statusFilter);
+    }
+
+    if (priorityFilter !== 'ALL') {
+      filtered = filtered.filter((c) => c.priority === priorityFilter);
+    }
+
+    setFilteredComplaints(filtered);
+  }, [search, statusFilter, priorityFilter, complaints]);
+
+  const fetchComplaints = async () => {
     try {
       setLoading(true);
-      const [complaintsData, institutesData] = await Promise.all([
-        apiService.getComplaints(),
-        apiService.getInstitutes(),
-      ]);
+      const response = await api.get('/institutes/complaints/');
+      console.log('Complaints API Response:', response.data);
+      
+      // Handle different response structures
+      let complaintsData = [];
+      if (response.data.data) {
+        complaintsData = response.data.data;
+      } else if (response.data.results) {
+        complaintsData = response.data.results;
+      } else if (Array.isArray(response.data)) {
+        complaintsData = response.data;
+      }
+      
       setComplaints(complaintsData);
-      setInstitutes(institutesData);
-      setError('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
+      setFilteredComplaints(complaintsData);
+    } catch (error: any) {
+      console.error('Failed to fetch complaints:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to fetch complaints',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async () => {
+  const handleViewComplaint = (complaint: Complaint) => {
+    setSelectedComplaint(complaint);
+    setViewDialogOpen(true);
+  };
+
+  const handleOpenStatusDialog = (complaint: Complaint) => {
+    setSelectedComplaint(complaint);
+    setNewStatus(complaint.status);
+    setStatusDialogOpen(true);
+  };
+
+  const handleOpenResolveDialog = (complaint: Complaint) => {
+    setSelectedComplaint(complaint);
+    setResolutionNotes('');
+    setResolveDialogOpen(true);
+  };
+
+  const handleUpdateStatus = async () => {
     if (!selectedComplaint) return;
 
     try {
-      await apiService.deleteComplaint(selectedComplaint.id);
-      setComplaints(complaints.filter((c) => c.id !== selectedComplaint.id));
-      setShowDeleteDialog(false);
-      setShowDetailModal(false);
-      setSelectedComplaint(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete complaint');
-      setShowDeleteDialog(false);
+      setSaving(true);
+      await api.post(`/institutes/complaints/${selectedComplaint.id}/update_status/`, {
+        status: newStatus
+      });
+      
+      toast({
+        title: 'Success',
+        description: 'Complaint status updated successfully!',
+      });
+      
+      setStatusDialogOpen(false);
+      fetchComplaints(); // Refresh list
+    } catch (error: any) {
+      console.error('Failed to update status:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to update status',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleStatusChange = async (complaint: Complaint, newStatus: string) => {
+  const handleResolveComplaint = async () => {
+    if (!selectedComplaint) return;
+
     try {
-      const updated = await apiService.updateComplaint(complaint.id, { status: newStatus as any });
-      setComplaints(complaints.map((c) => (c.id === updated.id ? updated : c)));
-      if (selectedComplaint?.id === updated.id) {
-        setSelectedComplaint(updated);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update status');
+      setSaving(true);
+      await api.post(`/institutes/complaints/${selectedComplaint.id}/resolve/`, {
+        resolution_notes: resolutionNotes
+      });
+      
+      toast({
+        title: 'Success',
+        description: 'Complaint resolved successfully!',
+      });
+      
+      setResolveDialogOpen(false);
+      fetchComplaints(); // Refresh list
+    } catch (error: any) {
+      console.error('Failed to resolve complaint:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to resolve complaint',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const filteredComplaints = selectedInstitute === 'all'
-    ? complaints
-    : complaints.filter((c) => c.institute === selectedInstitute);
-
-  const groupedComplaints = institutes.reduce((acc, institute) => {
-    const instituteComplaints = filteredComplaints.filter((c) => c.institute === institute.id);
-    if (instituteComplaints.length > 0 || selectedInstitute === institute.id) {
-      acc[institute.id] = {
-        institute,
-        complaints: instituteComplaints,
-      };
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'secondary';
+      case 'IN_PROGRESS':
+        return 'default';
+      case 'RESOLVED':
+        return 'default';
+      case 'CLOSED':
+        return 'secondary';
+      default:
+        return 'secondary';
     }
-    return acc;
-  }, {} as Record<number, { institute: Institute; complaints: Complaint[] }>);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return 'bg-orange-100 text-orange-700';
+        return 'bg-yellow-100 text-yellow-800';
       case 'IN_PROGRESS':
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-blue-100 text-blue-800';
       case 'RESOLVED':
-        return 'bg-green-100 text-green-700';
+        return 'bg-green-100 text-green-800';
       case 'CLOSED':
-        return 'bg-slate-100 text-slate-700';
+        return 'bg-gray-100 text-gray-800';
       default:
-        return 'bg-slate-100 text-slate-700';
+        return '';
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'URGENT':
-        return 'bg-red-100 text-red-700';
+        return 'bg-red-100 text-red-800';
       case 'HIGH':
-        return 'bg-orange-100 text-orange-700';
+        return 'bg-orange-100 text-orange-800';
       case 'MEDIUM':
-        return 'bg-yellow-100 text-yellow-700';
+        return 'bg-yellow-100 text-yellow-800';
       case 'LOW':
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-gray-100 text-gray-800';
       default:
-        return 'bg-slate-100 text-slate-700';
+        return '';
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Complaints Management</h1>
-          <p className="text-slate-600 mt-1">View and manage complaints by institute</p>
+          <h1 className="text-3xl font-bold">Complaints</h1>
+          <p className="text-muted-foreground">Track and resolve complaints</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            Total: <span className="font-semibold">{complaints.length}</span>
+          </div>
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
-
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-slate-700 mb-2">Filter by Institute</label>
-        <select
-          value={selectedInstitute}
-          onChange={(e) => setSelectedInstitute(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          className="w-full md:w-64 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none"
-        >
-          <option value="all">All Institutes</option>
-          {institutes.map((institute) => (
-            <option key={institute.id} value={institute.id}>
-              {institute.institute_name}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-4 md:flex-row">
+        <Input
+          placeholder="Search by ID, complainant, reason, or bus..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="md:max-w-sm"
+        />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="md:w-[180px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Status</SelectItem>
+            <SelectItem value="PENDING">Pending</SelectItem>
+            <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+            <SelectItem value="RESOLVED">Resolved</SelectItem>
+            <SelectItem value="CLOSED">Closed</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="md:w-[180px]">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Priority</SelectItem>
+            <SelectItem value="URGENT">Urgent</SelectItem>
+            <SelectItem value="HIGH">High</SelectItem>
+            <SelectItem value="MEDIUM">Medium</SelectItem>
+            <SelectItem value="LOW">Low</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {Object.keys(groupedComplaints).length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-          <MessageSquare className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">No Complaints Found</h3>
-          <p className="text-slate-600">There are no complaints for the selected filter.</p>
-        </div>
+      {filteredComplaints.length === 0 ? (
+        <Card className="p-12">
+          <div className="text-center">
+            <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground mb-2">No complaints found</p>
+            <p className="text-sm text-muted-foreground">
+              {search || statusFilter !== 'ALL' || priorityFilter !== 'ALL'
+                ? 'Try adjusting your filters'
+                : 'No complaints have been submitted yet'}
+            </p>
+          </div>
+        </Card>
       ) : (
-        <div className="space-y-8">
-          {Object.values(groupedComplaints).map(({ institute, complaints: instituteComplaints }) => (
-            <div key={institute.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-slate-900">{institute.institute_name}</h2>
-                  <span className="px-3 py-1 bg-slate-200 text-slate-700 rounded-full text-sm font-medium">
-                    {instituteComplaints.length} Complaints
-                  </span>
-                </div>
-              </div>
-
-              {instituteComplaints.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">
-                  No complaints for this institute
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-200">
-                  {instituteComplaints.map((complaint) => (
-                    <div key={complaint.id} className="p-6 hover:bg-slate-50 transition">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <span className="font-semibold text-slate-900">{complaint.complaint_code}</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(complaint.status)}`}>
-                              {complaint.status.replace('_', ' ')}
-                            </span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(complaint.priority)}`}>
-                              {complaint.priority}
-                            </span>
-                          </div>
-
-                          <p className="text-slate-700 mb-3">{complaint.reason}</p>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                            <div className="flex items-center space-x-2 text-slate-600">
-                              <User className="h-4 w-4" />
-                              <span>{complaint.complainant_name}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-slate-600">
-                              <Phone className="h-4 w-4" />
-                              <span>{complaint.complainant_mobile}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-slate-600">
-                              <Mail className="h-4 w-4" />
-                              <span>{complaint.complainant_email}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-slate-600">
-                              <Calendar className="h-4 w-4" />
-                              <span>{new Date(complaint.created_at!).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-2 ml-4">
-                          <button
-                            onClick={() => {
-                              setSelectedComplaint(complaint);
-                              setShowDetailModal(true);
-                            }}
-                            className="p-2 text-slate-600 hover:bg-slate-200 rounded-lg transition"
-                            title="View Details"
-                          >
-                            <AlertCircle className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedComplaint(complaint);
-                              setShowDeleteDialog(true);
-                            }}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
-                        </div>
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[120px]">ID</TableHead>
+                <TableHead className="w-[180px]">Complainant</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead className="w-[150px]">Bus</TableHead>
+                <TableHead className="w-[100px]">Priority</TableHead>
+                <TableHead className="w-[120px]">Status</TableHead>
+                <TableHead className="w-[140px]">Date</TableHead>
+                <TableHead className="text-right w-[180px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredComplaints.map((complaint) => (
+                <TableRow key={complaint.id}>
+                  <TableCell className="font-mono text-sm">
+                    {complaint.complaint_id}
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                        <span className="font-medium text-sm">{complaint.complainant_name}</span>
                       </div>
-
-                      <div className="mt-4 flex items-center space-x-2">
-                        <label className="text-sm font-medium text-slate-700">Status:</label>
-                        <select
-                          value={complaint.status}
-                          onChange={(e) => handleStatusChange(complaint, e.target.value)}
-                          className="px-3 py-1 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none"
-                        >
-                          <option value="PENDING">Pending</option>
-                          <option value="IN_PROGRESS">In Progress</option>
-                          <option value="RESOLVED">Resolved</option>
-                          <option value="CLOSED">Closed</option>
-                        </select>
+                      <div className="text-xs text-muted-foreground pl-5">
+                        {complaint.complainant_type_display}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="max-w-xs">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        Against: <span className="font-medium">{complaint.complaint_against_display}</span>
+                      </div>
+                      <p className="text-sm line-clamp-2">{complaint.reason}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {complaint.bus_short_name ? (
+                      <div className="flex items-center gap-2">
+                        <Bus className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                        <div>
+                          <div className="font-medium text-sm">{complaint.bus_short_name}</div>
+                          <div className="text-xs text-muted-foreground">{complaint.bus_number}</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">N/A</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getPriorityColor(complaint.priority)}>
+                      {complaint.priority_display}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(complaint.status)}>
+                      {complaint.status_display}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{formatDate(complaint.date_time)}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleViewComplaint(complaint)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      {complaint.status !== 'RESOLVED' && complaint.status !== 'CLOSED' && (
+                        <>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleOpenStatusDialog(complaint)}
+                          >
+                            Status
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleOpenResolveDialog(complaint)}
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       )}
 
-      {showDetailModal && selectedComplaint && (
-        <ComplaintDetailModal
-          complaint={selectedComplaint}
-          onClose={() => {
-            setShowDetailModal(false);
-            setSelectedComplaint(null);
-          }}
-          onDelete={() => setShowDeleteDialog(true)}
-        />
-      )}
-
-      <ConfirmDialog
-        isOpen={showDeleteDialog}
-        title="Delete Complaint"
-        message={`Are you sure you want to delete complaint ${selectedComplaint?.complaint_code}? This action cannot be undone.`}
-        confirmLabel="Delete"
-        onConfirm={handleDelete}
-        onCancel={() => setShowDeleteDialog(false)}
-        type="danger"
-      />
-    </div>
-  );
-}
-
-function ComplaintDetailModal({ complaint, onClose, onDelete }: { complaint: Complaint; onClose: () => void; onDelete: () => void }) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return 'bg-orange-100 text-orange-700';
-      case 'IN_PROGRESS':
-        return 'bg-blue-100 text-blue-700';
-      case 'RESOLVED':
-        return 'bg-green-100 text-green-700';
-      case 'CLOSED':
-        return 'bg-slate-100 text-slate-700';
-      default:
-        return 'bg-slate-100 text-slate-700';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'URGENT':
-        return 'bg-red-100 text-red-700';
-      case 'HIGH':
-        return 'bg-orange-100 text-orange-700';
-      case 'MEDIUM':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'LOW':
-        return 'bg-blue-100 text-blue-700';
-      default:
-        return 'bg-slate-100 text-slate-700';
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity bg-slate-900 bg-opacity-75" onClick={onClose}></div>
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-        <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-          <div className="bg-white px-6 pt-6 pb-4">
-            <div className="flex items-start justify-between mb-4">
+      {/* View Complaint Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Complaint Details</DialogTitle>
+            <DialogDescription>
+              {selectedComplaint?.complaint_id}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedComplaint && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Status</Label>
+                  <div className="mt-1">
+                    <Badge className={getStatusColor(selectedComplaint.status)}>
+                      {selectedComplaint.status_display}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Priority</Label>
+                  <div className="mt-1">
+                    <Badge className={getPriorityColor(selectedComplaint.priority)}>
+                      {selectedComplaint.priority_display}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              
               <div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-2">{complaint.complaint_code}</h3>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(complaint.status)}`}>
-                    {complaint.status.replace('_', ' ')}
-                  </span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(complaint.priority)}`}>
-                    {complaint.priority}
-                  </span>
-                </div>
+                <Label className="text-sm font-medium">Complainant</Label>
+                <p className="mt-1 text-sm">{selectedComplaint.complainant_name}</p>
+                <p className="text-xs text-muted-foreground">{selectedComplaint.complainant_type_display}</p>
+                {selectedComplaint.complainant_email && (
+                  <p className="text-xs text-muted-foreground">{selectedComplaint.complainant_email}</p>
+                )}
               </div>
-              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
 
-            <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-slate-500">Reason</label>
-                <p className="text-slate-900 mt-1">{complaint.reason}</p>
+                <Label className="text-sm font-medium">Complaint Against</Label>
+                <p className="mt-1 text-sm">{selectedComplaint.complaint_against_display}</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {selectedComplaint.bus_short_name && (
                 <div>
-                  <label className="text-sm font-medium text-slate-500">Complainant Name</label>
-                  <p className="text-slate-900 mt-1">{complaint.complainant_name}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-500">Mobile</label>
-                  <p className="text-slate-900 mt-1">{complaint.complainant_mobile}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-500">Email</label>
-                  <p className="text-slate-900 mt-1">{complaint.complainant_email}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-500">Created</label>
-                  <p className="text-slate-900 mt-1">{new Date(complaint.created_at!).toLocaleString()}</p>
-                </div>
-              </div>
-
-              {complaint.resolution_notes && (
-                <div>
-                  <label className="text-sm font-medium text-slate-500">Resolution Notes</label>
-                  <p className="text-slate-900 mt-1">{complaint.resolution_notes}</p>
+                  <Label className="text-sm font-medium">Bus</Label>
+                  <p className="mt-1 text-sm">
+                    {selectedComplaint.bus_short_name} ({selectedComplaint.bus_number})
+                  </p>
                 </div>
               )}
-            </div>
-          </div>
 
-          <div className="bg-slate-50 px-6 py-4 flex justify-end space-x-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition"
-            >
+              <div>
+                <Label className="text-sm font-medium">Reason</Label>
+                <p className="mt-1 text-sm">{selectedComplaint.reason}</p>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Date Submitted</Label>
+                <p className="mt-1 text-sm">{formatDate(selectedComplaint.date_time)}</p>
+              </div>
+
+              {selectedComplaint.resolved_at && (
+                <div>
+                  <Label className="text-sm font-medium">Resolved At</Label>
+                  <p className="mt-1 text-sm">{formatDate(selectedComplaint.resolved_at)}</p>
+                </div>
+              )}
+
+              {selectedComplaint.resolution_notes && (
+                <div>
+                  <Label className="text-sm font-medium">Resolution Notes</Label>
+                  <p className="mt-1 text-sm">{selectedComplaint.resolution_notes}</p>
+                </div>
+              )}
+
+              <div>
+                <Label className="text-sm font-medium">Institute</Label>
+                <p className="mt-1 text-sm">{selectedComplaint.institute_name}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
               Close
-            </button>
-            <button
-              onClick={onDelete}
-              className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>Delete</span>
-            </button>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Status Dialog */}
+      <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Complaint Status</DialogTitle>
+            <DialogDescription>
+              Change the status of complaint {selectedComplaint?.complaint_id}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="status">New Status</Label>
+              <Select value={newStatus} onValueChange={setNewStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="RESOLVED">Resolved</SelectItem>
+                  <SelectItem value="CLOSED">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
-      </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setStatusDialogOpen(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateStatus}
+              disabled={saving}
+            >
+              {saving ? 'Updating...' : 'Update Status'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resolve Complaint Dialog */}
+      <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resolve Complaint</DialogTitle>
+            <DialogDescription>
+              Mark complaint {selectedComplaint?.complaint_id} as resolved
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="resolution_notes">Resolution Notes (Optional)</Label>
+              <Textarea
+                id="resolution_notes"
+                value={resolutionNotes}
+                onChange={(e) => setResolutionNotes(e.target.value)}
+                placeholder="Describe how the complaint was resolved..."
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setResolveDialogOpen(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleResolveComplaint}
+              disabled={saving}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {saving ? 'Resolving...' : 'Mark as Resolved'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+};
+
+export default Complaints;

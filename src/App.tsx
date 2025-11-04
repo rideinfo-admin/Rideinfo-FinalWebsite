@@ -1,55 +1,127 @@
-import { useState, useEffect } from 'react';
-import { authService } from './services/auth';
-import Login from './pages/Login';
-import Layout from './components/Layout';
-import InstituteManagement from './pages/InstituteManagement';
-import Analysis from './pages/Analysis';
-import Complaints from './pages/Complaints';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { Layout } from "@/components/layout/Layout";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Institutes from "./pages/Institutes";
+import Buses from "./pages/Buses";
+import Drivers from "./pages/Drivers";
+import Coordinators from "./pages/Coordinators";
+import Complaints from "./pages/Complaints";
+import Notifications from "./pages/Notifications";
+import Tracking from "./pages/Tracking";
+import NotFound from "./pages/NotFound";
 
-type Page = 'institutes' | 'analysis' | 'complaints';
+const queryClient = new QueryClient();
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentPage, setCurrentPage] = useState<Page>('institutes');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = () => {
-      setIsAuthenticated(authService.isAuthenticated());
-      setIsLoading(false);
-    };
-
-    checkAuth();
-  }, []);
-
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setCurrentPage('institutes');
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
-
-  return (
-    <Layout currentPage={currentPage} onNavigate={setCurrentPage} onLogout={handleLogout}>
-      {currentPage === 'institutes' && <InstituteManagement />}
-      {currentPage === 'analysis' && <Analysis />}
-      {currentPage === 'complaints' && <Complaints />}
-    </Layout>
-  );
-}
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/dashboard" replace />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/institutes"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Institutes />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/buses"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Buses />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/drivers"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Drivers />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/coordinators"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Coordinators />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/complaints"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Complaints />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Notifications />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tracking"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Tracking />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
 
 export default App;
