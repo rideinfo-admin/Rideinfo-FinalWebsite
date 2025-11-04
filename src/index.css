@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 
+/*
   Design System
   All colors, gradients, fonts, etc. are defined here.
   All colors MUST be HSL.
@@ -70,60 +70,87 @@
 @layer base {
   /* Apply consistent border and color across all elements */
   * {
-    @apply border;
     border-color: hsl(var(--border));
   }
-
+  
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
-
+  
   /* Leaflet map styling */
   .leaflet-container {
-    @apply rounded-lg;
+    border-radius: 0.5rem;
   }
 }
 
 @layer components {
   /* Status badges */
   .status-badge {
-    @apply inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
   }
   
   .status-active {
-    @apply bg-green-100 text-green-700;
+    background-color: rgb(220 252 231);
+    color: rgb(21 128 61);
   }
   
   .status-inactive {
-    @apply bg-gray-100 text-gray-700;
+    background-color: rgb(243 244 246);
+    color: rgb(55 65 81);
   }
   
   .status-moving {
-    @apply bg-blue-100 text-blue-700;
+    background-color: rgb(219 234 254);
+    color: rgb(29 78 216);
   }
   
   .status-stopped {
-    @apply bg-gray-100 text-gray-600;
+    background-color: rgb(243 244 246);
+    color: rgb(75 85 99);
   }
   
   .status-pending {
-    @apply bg-yellow-100 text-yellow-700;
+    background-color: rgb(254 249 195);
+    color: rgb(161 98 7);
   }
   
   .status-resolved {
-    @apply bg-green-100 text-green-700;
+    background-color: rgb(220 252 231);
+    color: rgb(21 128 61);
   }
   
   .status-urgent {
-    @apply bg-red-100 text-red-700;
+    background-color: rgb(254 226 226);
+    color: rgb(185 28 28);
   }
-
+  
   /* Sidebar links */
   .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 hover:bg-sidebar-accent text-sidebar-foreground;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+    color: hsl(var(--sidebar-foreground));
   }
-
+  
+  .sidebar-link:hover {
+    background-color: hsl(var(--sidebar-accent));
+  }
+  
   .sidebar-link-active {
-    @apply bg-sidebar-primary text-sidebar-primary-foreground;
+    background-color: hsl(var(--sidebar-primary));
+    color: hsl(var(--sidebar-primary-foreground));
   }
 }
